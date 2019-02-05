@@ -1,53 +1,121 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using static CircuitBreaker.Domain.ErrorMessage;
 
 namespace CircuitBreaker.Domain
 {
     public class CircuitBreaker
     {
-        private readonly object monitor = new object();
+        private volatile object syncLock = new object();
         private CircuitBreakerState state;
+        private Exception lastException;
 
         public CircuitBreaker(int threshold, TimeSpan timeout)
         {
-            if (threshold < 1)
+            if (threshold <= 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(threshold), "Threshold should be greater than 0");
+                throw new ArgumentOutOfRangeException(nameof(threshold), ThresholdRangeInvalid);
             }
 
-            if (timeout.TotalMilliseconds < 1)
+            if (timeout.TotalMilliseconds <= 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(timeout), "Timeout should be greater than 0");
+                throw new ArgumentOutOfRangeException(nameof(timeout), TimeoutRangeInvalid);
             }
 
             Threshold = threshold;
             Timeout = timeout;
-            MoveToClosedState();
+            MoveToHealthyState();
         }
 
         public int Failures { get; private set; }
-        public int Threshold { get; private set; }
-        public TimeSpan Timeout { get; private set; }
-        public bool IsClosed => state.Update() is ClosedState;
-        public bool IsOpen => state.Update() is OpenState;
-        public bool IsHalfOpen => state.Update() is HalfOpenState;
+        public int Threshold { get; }
+        public TimeSpan Timeout { get; }
+        public bool IsHealthyAndClosed => state.Update() is HealthyClosedState;
+        public bool IsBrokenAndOpen => state.Update() is BrokenOpenState;
+        public bool IsMendingAndHalfway => state.Update() is MendingHalfState;
 
-        internal CircuitBreakerState MoveToClosedState()
+        public event EventHandler BeforeInvoke;
+        public event EventHandler AfterInvoke;
+        public event EventHandler Error;
+
+        public bool IsThresholdReached()
         {
-            state = new ClosedState(this);
+            return Failures >= Threshold;
+        }
+
+        public Exception LastError()
+        {
+            return lastException;
+        }
+
+        public CircuitBreaker TryInvoke(Action action)
+        {
+            lastException = null;
+            lock (syncLock)
+            {
+                OnBeforeInvoke();
+                if (state is BrokenOpenState)
+                {
+                    return this; 
+                }
+            }
+
+            try
+            {
+                action?.Invoke();
+            }
+            catch (Exception e)
+            {
+                OnError(e);               
+                return this; 
+            }
+
+            OnAfterInvoke();
+            return this;
+        }
+
+        private void OnAfterInvoke()
+        {
+            lock (syncLock)
+            {
+                state.OnAfterInvoke();
+            }
+            var handler = AfterInvoke;
+            handler?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void OnError(Exception exception)
+        {
+            lastException = exception;
+            lock (syncLock)
+            {
+                state.OnError(exception);
+            }
+            var handler = Error;
+            handler?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void OnBeforeInvoke()
+        {
+            state.OnBeforeInvoke();
+            var handler = BeforeInvoke;
+            handler?.Invoke(this, EventArgs.Empty);
+        }
+
+        internal CircuitBreakerState MoveToHealthyState()
+        {
+            state = new HealthyClosedState(this);
             return state;
         }
 
-        internal CircuitBreakerState MoveToOpenState()
+        internal CircuitBreakerState MoveToBrokenState()
         {
-            state = new OpenState(this);
+            state = new BrokenOpenState(this);
             return state;
         }
 
-        internal CircuitBreakerState MoveToHalfOpenState()
+        internal CircuitBreakerState MoveToMendingState()
         {
-            state = new HalfOpenState(this);
+            state = new MendingHalfState(this);
             return state;
         }
 
@@ -59,67 +127,6 @@ namespace CircuitBreaker.Domain
         internal void ResetFailureCount()
         {
             Failures = 0;
-        }
-
-        public bool IsThresholdReached()
-        {
-            return Failures >= Threshold;
-        }
-
-        private Exception exceptionFromLastAttemptCall = null;
-
-        public Exception GetExceptionFromLastAttemptCall()
-        {
-            return exceptionFromLastAttemptCall;
-        }
-
-        public CircuitBreaker AttemptCall(Action protectedCode)
-        {
-            this.exceptionFromLastAttemptCall = null;
-            lock (monitor)
-            {
-                state.ProtectedCodeIsAboutToBeCalled();
-                if (state is OpenState)
-                {
-                    return this; 
-                }
-            }
-
-            try
-            {
-                protectedCode();
-            }
-            catch (Exception e)
-            {
-                this.exceptionFromLastAttemptCall = e;
-                lock (monitor)
-                {
-                    state.ActUponException(e);
-                }
-                return this; 
-            }
-
-            lock (monitor)
-            {
-                state.ProtectedCodeHasBeenCalled();
-            }
-            return this;
-        }
-
-        public void Close()
-        {
-            lock (monitor)
-            {
-                MoveToClosedState();
-            }
-        }
-
-        public void Open()
-        {
-            lock (monitor)
-            {
-                MoveToOpenState();
-            }
         }
     }
 }

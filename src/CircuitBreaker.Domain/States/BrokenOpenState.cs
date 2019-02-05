@@ -1,23 +1,22 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace CircuitBreaker.Domain
 {
-    public class OpenState : CircuitBreakerState
+    public class BrokenOpenState : CircuitBreakerState
     {
         private readonly DateTime openDateTime;
-        public OpenState(CircuitBreaker circuitBreaker)
+
+        public BrokenOpenState(CircuitBreaker circuitBreaker)
             : base(circuitBreaker)
         {
             openDateTime = DateTime.UtcNow;
         }
 
-        public override CircuitBreaker ProtectedCodeIsAboutToBeCalled()
+        internal override CircuitBreaker OnBeforeInvoke()
         {
-            base.ProtectedCodeIsAboutToBeCalled();
-            this.Update();
-            return base.circuitBreaker;
+            base.OnBeforeInvoke();
+            Update();
+            return circuitBreaker;
         }
 
         public override CircuitBreakerState Update()
@@ -25,7 +24,7 @@ namespace CircuitBreaker.Domain
             base.Update();
             if (DateTime.UtcNow >= openDateTime + base.circuitBreaker.Timeout)
             {
-                return circuitBreaker.MoveToHalfOpenState();
+                return circuitBreaker.MoveToMendingState();
             }
             return this;
         }
