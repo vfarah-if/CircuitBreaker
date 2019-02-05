@@ -11,7 +11,7 @@ namespace CircuitBreaker.Domain
             this.circuitBreaker = circuitBreaker;
         }
 
-        public virtual CircuitBreakerState GetState()
+        public virtual CircuitBreakerState State()
         {
             return this;
         }

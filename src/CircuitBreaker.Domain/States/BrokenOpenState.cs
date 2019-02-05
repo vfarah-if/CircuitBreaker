@@ -15,13 +15,13 @@ namespace CircuitBreaker.Domain
         internal override CircuitBreaker OnBeforeInvoke()
         {
             base.OnBeforeInvoke();
-            GetState();
+            State();
             return circuitBreaker;
         }
 
-        public override CircuitBreakerState GetState()
+        public override CircuitBreakerState State()
         {
-            base.GetState();
+            base.State();
             return DateTime.UtcNow >= openDateTime + base.circuitBreaker.Timeout ? circuitBreaker.MoveToMendingState() : this;
         }
     }

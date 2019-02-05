@@ -29,9 +29,9 @@ namespace CircuitBreaker.Domain
         public int Failures { get; private set; }
         public int Threshold { get; }
         public TimeSpan Timeout { get; }
-        public bool IsHealthyAndClosed => circuitBreakerState.GetState() is HealthyClosedState;
-        public bool IsBrokenAndOpen => circuitBreakerState.GetState() is BrokenOpenState;
-        public bool IsMendingAndHalfway => circuitBreakerState.GetState() is MendingHalfState;
+        public bool IsHealthyAndClosed => circuitBreakerState is HealthyClosedState;
+        public bool IsBrokenAndOpen => circuitBreakerState is BrokenOpenState;
+        public bool IsMendingAndHalfway => circuitBreakerState is MendingHalfState;
 
         public event EventHandler BeforeInvoke;
         public event EventHandler AfterInvoke;
