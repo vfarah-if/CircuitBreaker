@@ -32,3 +32,6 @@ Analysis utilising ideas from https://en.wikipedia.org/wiki/Circuit_breaker_desi
 
         - Single call succeeding closes circuit
         - Single call failing resets some kind of timeout
+
+# Summary
+Final conclusion, [Polly](https://github.com/App-vNext/Polly) is still the most appropriate library to use when trying several types of resilience methods on a call, including the circuit breaker with possibilities to do manual circuit

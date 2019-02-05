@@ -55,7 +55,7 @@ namespace CircuitBreaker.Domain.UnitTests
         }
 
         [Fact]
-        public void CountFailuresAndStayInAHealthyStateWhileTheThresholdIsNotReached()
+        public void CountFailuresAndStayInAHealthyClosedStateWhileTheThresholdIsNotReached()
         {
             for (var errorCount = 1; errorCount < circuitBreaker.Threshold; errorCount++)
             {
@@ -63,7 +63,7 @@ namespace CircuitBreaker.Domain.UnitTests
                 actual.IsHealthyAndClosed.Should().BeTrue();
                 actual.LastError().Should().NotBeNull();
                 actual.Failures.Should().Be(errorCount);
-                actual.IsThresholdReached().Should().BeFalse();
+                actual.IsThresholdReached.Should().BeFalse();
             }
         }
 
@@ -80,7 +80,7 @@ namespace CircuitBreaker.Domain.UnitTests
             actual.IsBrokenAndOpen.Should().BeTrue();
             actual.Failures.Should().Be(circuitBreaker.Threshold);
             testMethodCall.FailingMethodCallCount.Should().Be(circuitBreaker.Threshold);
-            actual.IsThresholdReached().Should().BeTrue();
+            actual.IsThresholdReached.Should().BeTrue();
         }
 
         [Fact]
@@ -120,7 +120,7 @@ namespace CircuitBreaker.Domain.UnitTests
             beforeInvokeCallCount.Should().Be(1);
             actual.IsMendingAndHalfway.Should().BeFalse();
             actual.IsHealthyAndClosed.Should().BeTrue();
-            actual.IsThresholdReached().Should().BeFalse();
+            actual.IsThresholdReached.Should().BeFalse();
             actual.Failures.Should().Be(0);
         }
 
@@ -150,7 +150,7 @@ namespace CircuitBreaker.Domain.UnitTests
             actual.IsMendingAndHalfway.Should().BeFalse();
             actual.IsHealthyAndClosed.Should().BeFalse();
             actual.IsBrokenAndOpen.Should().BeTrue();
-            actual.IsThresholdReached().Should().BeTrue();
+            actual.IsThresholdReached.Should().BeTrue();
         }
     }
 }

@@ -10,9 +10,10 @@ namespace CircuitBreaker.Domain
             : base(circuitBreaker)
         {
             openDateTime = DateTime.UtcNow;
+            circuitBreaker.BeforeInvoke += OnBeforeInvoke;
         }
 
-        internal override void OnBeforeInvoke()
+        private void OnBeforeInvoke(object sender, EventArgs e)
         {
             if (DateTime.UtcNow >= openDateTime + base.circuitBreaker.Timeout)
             {

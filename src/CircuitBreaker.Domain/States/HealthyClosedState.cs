@@ -8,11 +8,12 @@ namespace CircuitBreaker.Domain
             : base(circuitBreaker)
         {
             circuitBreaker.Reset();
+            circuitBreaker.Error += OnError;
         }
 
-        internal override void OnError(Exception e)
+        private void OnError(Object sender, EventArgs e)
         {
-            if (circuitBreaker.IsThresholdReached())
+            if (circuitBreaker.IsThresholdReached)
             {
                 circuitBreaker.MoveToBrokenState();
             }

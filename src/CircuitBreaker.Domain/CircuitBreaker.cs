@@ -33,15 +33,11 @@ namespace CircuitBreaker.Domain
         public bool IsHealthyAndClosed => circuitBreakerState is HealthyClosedState;
         public bool IsBrokenAndOpen => circuitBreakerState is BrokenOpenState;
         public bool IsMendingAndHalfway => circuitBreakerState is MendingHalfState;
+        public bool IsThresholdReached => Failures >= Threshold;
 
         public event EventHandler BeforeInvoke;
         public event EventHandler AfterInvoke;
         public event EventHandler Error;
-
-        public bool IsThresholdReached()
-        {
-            return Failures >= Threshold;
-        }
 
         public Exception LastError()
         {
@@ -51,13 +47,12 @@ namespace CircuitBreaker.Domain
         public CircuitBreaker TryInvoke(Action action)
         {
             lastException = null;
-          
+
             OnBeforeInvoke();
             if (circuitBreakerState is BrokenOpenState)
             {
-                return this; 
+                return this;
             }
-     
 
             try
             {
@@ -65,78 +60,75 @@ namespace CircuitBreaker.Domain
             }
             catch (Exception e)
             {
-                OnError(e);               
-                return this; 
+                OnError(e);
+                return this;
             }
 
             OnAfterInvoke();
             return this;
         }
 
-        private void OnAfterInvoke()
+        protected virtual void OnAfterInvoke()
         {
-            lockSlim.EnterWriteLock();
-            try
-            {
-                circuitBreakerState.OnAfterInvoke();
-            }
-            finally
-            {
-                lockSlim.ExitWriteLock();
-            }
             var handler = AfterInvoke;
             handler?.Invoke(this, EventArgs.Empty);
         }
 
-        private void OnError(Exception exception)
+        protected virtual void OnError(Exception exception)
         {
             lastException = exception;
             Failures++;
-            lockSlim.EnterWriteLock();
-            try
-            {
-                circuitBreakerState.OnError(exception);
-            }
-            finally
-            {
-                lockSlim.ExitWriteLock();
-            }
+
             var handler = Error;
             handler?.Invoke(this, EventArgs.Empty);
         }
 
-        private void OnBeforeInvoke()
+        protected virtual void OnBeforeInvoke()
         {
-            lockSlim.EnterWriteLock();
-            try
-            {
-                circuitBreakerState.OnBeforeInvoke();
-            }
-            finally
-            {
-                lockSlim.ExitWriteLock();
-            }
-
             var handler = BeforeInvoke;
             handler?.Invoke(this, EventArgs.Empty);
         }
 
         internal CircuitBreakerState MoveToHealthyState()
         {
-            circuitBreakerState = new HealthyClosedState(this);
-            return circuitBreakerState;
+            lockSlim.EnterWriteLock();
+            try
+            {
+                circuitBreakerState = new HealthyClosedState(this);
+                return circuitBreakerState;
+            }
+            finally
+            {
+                lockSlim.ExitWriteLock();
+            }
         }
 
         internal CircuitBreakerState MoveToBrokenState()
         {
-            circuitBreakerState = new BrokenOpenState(this);
-            return circuitBreakerState;
+            lockSlim.EnterWriteLock();
+            try
+            {
+                circuitBreakerState = new BrokenOpenState(this);
+                return circuitBreakerState;
+            }
+            finally
+            {
+                lockSlim.ExitWriteLock();
+            }
         }
 
         internal CircuitBreakerState MoveToMendingState()
         {
-            circuitBreakerState = new MendingHalfState(this);
-            return circuitBreakerState;
+            lockSlim.EnterWriteLock();
+            try
+            {
+                circuitBreakerState = new MendingHalfState(this);
+                return circuitBreakerState;
+            }
+            finally
+            {
+                lockSlim.ExitWriteLock();
+            }
         }
 
         internal void Reset()

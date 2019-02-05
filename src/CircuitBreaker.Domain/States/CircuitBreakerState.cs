@@ -10,17 +10,5 @@ namespace CircuitBreaker.Domain
         {
             this.circuitBreaker = circuitBreaker;
         }
-
-        internal virtual void OnBeforeInvoke()
-        {
-        }
-
-        internal virtual void OnAfterInvoke()
-        {
-        }
-
-        internal virtual void OnError(Exception e)
-        {
-        }
     }
 }
