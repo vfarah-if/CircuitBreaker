@@ -7,7 +7,7 @@ namespace CircuitBreaker.Domain
         public HealthyClosedState(CircuitBreaker circuitBreaker)
             : base(circuitBreaker)
         {
-            circuitBreaker.ResetFailureCount();
+            circuitBreaker.Reset();
         }
 
         internal override void OnError(Exception e)

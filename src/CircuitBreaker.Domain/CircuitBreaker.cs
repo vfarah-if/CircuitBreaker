@@ -6,7 +6,7 @@ namespace CircuitBreaker.Domain
     public class CircuitBreaker
     {
         private volatile object syncLock = new object();
-        private CircuitBreakerState state;
+        private CircuitBreakerState circuitBreakerState;
         private Exception lastException;
 
         public CircuitBreaker(int threshold, TimeSpan timeout)
@@ -29,9 +29,9 @@ namespace CircuitBreaker.Domain
         public int Failures { get; private set; }
         public int Threshold { get; }
         public TimeSpan Timeout { get; }
-        public bool IsHealthyAndClosed => state.Update() is HealthyClosedState;
-        public bool IsBrokenAndOpen => state.Update() is BrokenOpenState;
-        public bool IsMendingAndHalfway => state.Update() is MendingHalfState;
+        public bool IsHealthyAndClosed => circuitBreakerState.GetState() is HealthyClosedState;
+        public bool IsBrokenAndOpen => circuitBreakerState.GetState() is BrokenOpenState;
+        public bool IsMendingAndHalfway => circuitBreakerState.GetState() is MendingHalfState;
 
         public event EventHandler BeforeInvoke;
         public event EventHandler AfterInvoke;
@@ -53,7 +53,7 @@ namespace CircuitBreaker.Domain
             lock (syncLock)
             {
                 OnBeforeInvoke();
-                if (state is BrokenOpenState)
+                if (circuitBreakerState is BrokenOpenState)
                 {
                     return this; 
                 }
@@ -77,7 +77,7 @@ namespace CircuitBreaker.Domain
         {
             lock (syncLock)
             {
-                state.OnAfterInvoke();
+                circuitBreakerState.OnAfterInvoke();
             }
             var handler = AfterInvoke;
             handler?.Invoke(this, EventArgs.Empty);
@@ -88,7 +88,7 @@ namespace CircuitBreaker.Domain
             lastException = exception;
             lock (syncLock)
             {
-                state.OnError(exception);
+                circuitBreakerState.OnError(exception);
             }
             var handler = Error;
             handler?.Invoke(this, EventArgs.Empty);
@@ -96,27 +96,27 @@ namespace CircuitBreaker.Domain
 
         private void OnBeforeInvoke()
         {
-            state.OnBeforeInvoke();
+            circuitBreakerState.OnBeforeInvoke();
             var handler = BeforeInvoke;
             handler?.Invoke(this, EventArgs.Empty);
         }
 
         internal CircuitBreakerState MoveToHealthyState()
         {
-            state = new HealthyClosedState(this);
-            return state;
+            circuitBreakerState = new HealthyClosedState(this);
+            return circuitBreakerState;
         }
 
         internal CircuitBreakerState MoveToBrokenState()
         {
-            state = new BrokenOpenState(this);
-            return state;
+            circuitBreakerState = new BrokenOpenState(this);
+            return circuitBreakerState;
         }
 
         internal CircuitBreakerState MoveToMendingState()
         {
-            state = new MendingHalfState(this);
-            return state;
+            circuitBreakerState = new MendingHalfState(this);
+            return circuitBreakerState;
         }
 
         internal void IncreaseFailureCount()
@@ -124,7 +124,7 @@ namespace CircuitBreaker.Domain
             Failures++;
         }
 
-        internal void ResetFailureCount()
+        internal void Reset()
         {
             Failures = 0;
         }
