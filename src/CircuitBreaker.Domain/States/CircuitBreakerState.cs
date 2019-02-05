@@ -11,14 +11,8 @@ namespace CircuitBreaker.Domain
             this.circuitBreaker = circuitBreaker;
         }
 
-        public virtual CircuitBreakerState State()
+        internal virtual void OnBeforeInvoke()
         {
-            return this;
-        }
-
-        internal virtual CircuitBreaker OnBeforeInvoke()
-        {
-            return circuitBreaker;
         }
 
         internal virtual void OnAfterInvoke()
@@ -27,7 +21,6 @@ namespace CircuitBreaker.Domain
 
         internal virtual void OnError(Exception e)
         {
-            circuitBreaker.IncreaseFailureCount();
         }
     }
 }

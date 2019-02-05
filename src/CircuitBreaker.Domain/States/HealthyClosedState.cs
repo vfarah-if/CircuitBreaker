@@ -12,7 +12,6 @@ namespace CircuitBreaker.Domain
 
         internal override void OnError(Exception e)
         {
-            base.OnError(e);
             if (circuitBreaker.IsThresholdReached())
             {
                 circuitBreaker.MoveToBrokenState();

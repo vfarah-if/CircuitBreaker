@@ -12,17 +12,12 @@ namespace CircuitBreaker.Domain
             openDateTime = DateTime.UtcNow;
         }
 
-        internal override CircuitBreaker OnBeforeInvoke()
+        internal override void OnBeforeInvoke()
         {
-            base.OnBeforeInvoke();
-            State();
-            return circuitBreaker;
-        }
-
-        public override CircuitBreakerState State()
-        {
-            base.State();
-            return DateTime.UtcNow >= openDateTime + base.circuitBreaker.Timeout ? circuitBreaker.MoveToMendingState() : this;
+            if (DateTime.UtcNow >= openDateTime + base.circuitBreaker.Timeout)
+            {
+                circuitBreaker.MoveToMendingState();
+            }
         }
     }
 }

@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Threading;
 using static CircuitBreaker.Domain.ErrorMessage;
 
 namespace CircuitBreaker.Domain
 {
     public class CircuitBreaker
     {
-        private volatile object syncLock = new object();
+        private readonly ReaderWriterLockSlim lockSlim = new ReaderWriterLockSlim();
         private CircuitBreakerState circuitBreakerState;
         private Exception lastException;
 
@@ -50,14 +51,13 @@ namespace CircuitBreaker.Domain
         public CircuitBreaker TryInvoke(Action action)
         {
             lastException = null;
-            lock (syncLock)
+          
+            OnBeforeInvoke();
+            if (circuitBreakerState is BrokenOpenState)
             {
-                OnBeforeInvoke();
-                if (circuitBreakerState is BrokenOpenState)
-                {
-                    return this; 
-                }
+                return this; 
             }
+     
 
             try
             {
@@ -75,9 +75,14 @@ namespace CircuitBreaker.Domain
 
         private void OnAfterInvoke()
         {
-            lock (syncLock)
+            lockSlim.EnterWriteLock();
+            try
             {
                 circuitBreakerState.OnAfterInvoke();
+            }
+            finally
+            {
+                lockSlim.ExitWriteLock();
             }
             var handler = AfterInvoke;
             handler?.Invoke(this, EventArgs.Empty);
@@ -86,9 +91,15 @@ namespace CircuitBreaker.Domain
         private void OnError(Exception exception)
         {
             lastException = exception;
-            lock (syncLock)
+            Failures++;
+            lockSlim.EnterWriteLock();
+            try
             {
                 circuitBreakerState.OnError(exception);
+            }
+            finally
+            {
+                lockSlim.ExitWriteLock();
             }
             var handler = Error;
             handler?.Invoke(this, EventArgs.Empty);
@@ -96,7 +107,16 @@ namespace CircuitBreaker.Domain
 
         private void OnBeforeInvoke()
         {
-            circuitBreakerState.OnBeforeInvoke();
+            lockSlim.EnterWriteLock();
+            try
+            {
+                circuitBreakerState.OnBeforeInvoke();
+            }
+            finally
+            {
+                lockSlim.ExitWriteLock();
+            }
+
             var handler = BeforeInvoke;
             handler?.Invoke(this, EventArgs.Empty);
         }
@@ -117,11 +137,6 @@ namespace CircuitBreaker.Domain
         {
             circuitBreakerState = new MendingHalfState(this);
             return circuitBreakerState;
-        }
-
-        internal void IncreaseFailureCount()
-        {
-            Failures++;
         }
 
         internal void Reset()

@@ -8,13 +8,11 @@ namespace CircuitBreaker.Domain
 
         internal override void OnError(Exception e)
         {
-            base.OnError(e);
             circuitBreaker.MoveToBrokenState();
         }
 
         internal override void OnAfterInvoke()
         {
-            base.OnAfterInvoke();
             circuitBreaker.MoveToHealthyState();
         }
     }
