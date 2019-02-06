@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using FluentAssertions;
 using Xunit;
@@ -27,7 +28,7 @@ namespace CircuitBreaker.Domain.UnitTests
         [InlineData(-1)]
         public void ThrowArgumentRangeExceptionWhenThresholdValueIsInvalid(int invalidThreshold)
         {
-            var expectedErrorMessage = $"{ThresholdRangeInvalid}{NewLine}Parameter name: threshold" ;
+            var expectedErrorMessage = $"{ThresholdRangeInvalid}{NewLine}Parameter name: threshold";
 
             Action action = () => { new CircuitBreaker(invalidThreshold, validTimeSpan); };
 
@@ -74,8 +75,9 @@ namespace CircuitBreaker.Domain.UnitTests
             for (var errorCount = 1; errorCount <= circuitBreaker.Threshold; errorCount++)
             {
                 actual = circuitBreaker.TryInvoke(() => testMethodCall.ErrorProneMethod());
-                
+
             }
+
             actual.IsHealthyAndClosed.Should().BeFalse();
             actual.IsBrokenAndOpen.Should().BeTrue();
             actual.Failures.Should().Be(circuitBreaker.Threshold);
@@ -94,7 +96,7 @@ namespace CircuitBreaker.Domain.UnitTests
 
             actual.Should().NotBeNull();
             circuitBreaker.TryInvoke(() => testMethodCall.SuccessProneMethod());
-            
+
         }
 
         [Fact]
@@ -105,7 +107,7 @@ namespace CircuitBreaker.Domain.UnitTests
             {
                 actual = circuitBreaker.TryInvoke(() => testMethodCall.ErrorProneMethod());
             }
-           
+
             Thread.Sleep(validTimeSpan);
 
             actual.Should().NotBeNull();
@@ -151,6 +153,61 @@ namespace CircuitBreaker.Domain.UnitTests
             actual.IsHealthyAndClosed.Should().BeFalse();
             actual.IsBrokenAndOpen.Should().BeTrue();
             actual.IsThresholdReached.Should().BeTrue();
+        }
+
+        [Fact]
+        public void WorkInAMultiThreadedEnvironment()
+        {
+            Thread[] threads = new Thread[5];
+
+            for (int i = 0; i < threads.Length; i++)
+            {
+                threads[i] = new Thread(TestTransitionBrokenStateAfterTimeOutPeriodBackToABrokenStateOnAFailedSingleCallByThread);
+                threads[i].Name = "Thread -> " + i;
+            }
+
+            foreach (Thread thread in threads)
+            {
+                thread.Start();
+            }
+
+            foreach (Thread thread in threads)
+            {
+                thread.Join();
+            }
+        }
+
+        static void TestTransitionBrokenStateAfterTimeOutPeriodBackToABrokenStateOnAFailedSingleCallByThread()
+        {
+            var validThreshold = 3;
+            var validTimeSpan = TimeSpan.FromMilliseconds(400);
+            var circuitBreaker = new CircuitBreaker(validThreshold, validTimeSpan);
+            var testMethodCall = new TestMethodCall();
+            CircuitBreaker actual = null;
+            for (var errorCount = 1; errorCount <= circuitBreaker.Threshold; errorCount++)
+            {
+                actual = circuitBreaker.TryInvoke(() => testMethodCall.ErrorProneMethod());             
+            }
+
+            Thread.Sleep(validTimeSpan);
+            
+            actual.Should().NotBeNull();
+            var beforeInvokeCallCount = 0;
+            actual.BeforeInvoke += (sender, args) =>
+            {
+                actual.IsMendingAndHalfway.Should().BeTrue();
+                beforeInvokeCallCount++;
+            };
+            actual = actual.TryInvoke(() => testMethodCall.ErrorProneMethod());
+
+            testMethodCall.FailingMethodCallCount.Should().Be(4);
+            actual.Failures.Should().Be(4);
+            beforeInvokeCallCount.Should().Be(1);
+            actual.IsMendingAndHalfway.Should().BeFalse();
+            actual.IsHealthyAndClosed.Should().BeFalse();
+            actual.IsBrokenAndOpen.Should().BeTrue();
+            actual.IsThresholdReached.Should().BeTrue();
+            Debug.WriteLine(Thread.CurrentThread.Name);
         }
     }
 }
