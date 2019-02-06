@@ -1,12 +1,11 @@
 ﻿using System;
-using System.Threading;
 using static CircuitBreaker.Domain.ErrorMessage;
 
 namespace CircuitBreaker.Domain
 {
     public class CircuitBreaker
     {
-        private readonly ReaderWriterLockSlim lockSlim = new ReaderWriterLockSlim();
+        private volatile object syncLock = new object();
         private CircuitBreakerState circuitBreakerState;
         private Exception lastException;
 
@@ -91,43 +90,28 @@ namespace CircuitBreaker.Domain
 
         internal CircuitBreakerState MoveToHealthyState()
         {
-            lockSlim.EnterWriteLock();
-            try
+            lock (syncLock)
             {
                 circuitBreakerState = new HealthyClosedState(this);
                 return circuitBreakerState;
-            }
-            finally
-            {
-                lockSlim.ExitWriteLock();
             }
         }
 
         internal CircuitBreakerState MoveToBrokenState()
         {
-            lockSlim.EnterWriteLock();
-            try
+            lock (syncLock)
             {
                 circuitBreakerState = new BrokenOpenState(this);
                 return circuitBreakerState;
-            }
-            finally
-            {
-                lockSlim.ExitWriteLock();
             }
         }
 
         internal CircuitBreakerState MoveToMendingState()
         {
-            lockSlim.EnterWriteLock();
-            try
+            lock (syncLock)
             {
                 circuitBreakerState = new MendingHalfState(this);
                 return circuitBreakerState;
-            }
-            finally
-            {
-                lockSlim.ExitWriteLock();
             }
         }
 

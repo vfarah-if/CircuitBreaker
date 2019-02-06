@@ -158,7 +158,7 @@ namespace CircuitBreaker.Domain.UnitTests
         [Fact]
         public void WorkInAMultiThreadedEnvironment()
         {
-            Thread[] threads = new Thread[5];
+            var threads = new Thread[5];
 
             for (int i = 0; i < threads.Length; i++)
             {
@@ -166,12 +166,12 @@ namespace CircuitBreaker.Domain.UnitTests
                 threads[i].Name = "Thread -> " + i;
             }
 
-            foreach (Thread thread in threads)
+            foreach (var thread in threads)
             {
                 thread.Start();
             }
 
-            foreach (Thread thread in threads)
+            foreach (var thread in threads)
             {
                 thread.Join();
             }
