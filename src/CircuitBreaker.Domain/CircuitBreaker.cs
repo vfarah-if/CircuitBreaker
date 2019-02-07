@@ -38,9 +38,9 @@ namespace CircuitBreaker.Domain
         public event EventHandler AfterInvoke;
         public event EventHandler Error;
 
-        public Exception LastError()
+        public Exception LastError
         {
-            return lastException;
+            get { return lastException; }
         }
 
         public CircuitBreaker TryInvoke(Action action)
@@ -75,8 +75,11 @@ namespace CircuitBreaker.Domain
 
         protected virtual void OnError(Exception exception)
         {
-            lastException = exception;
-            Failures++;
+            lock (syncLock)
+            {
+                lastException = exception;
+                Failures++;
+            }
 
             var handler = Error;
             handler?.Invoke(this, EventArgs.Empty);

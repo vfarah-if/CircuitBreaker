@@ -62,7 +62,7 @@ namespace CircuitBreaker.Domain.UnitTests
             {
                 var actual = circuitBreaker.TryInvoke(() => testMethodCall.ErrorProneMethod());
                 actual.IsHealthyAndClosed.Should().BeTrue();
-                actual.LastError().Should().NotBeNull();
+                actual.LastError.Should().NotBeNull();
                 actual.Failures.Should().Be(errorCount);
                 actual.IsThresholdReached.Should().BeFalse();
             }
@@ -207,6 +207,7 @@ namespace CircuitBreaker.Domain.UnitTests
             actual.IsHealthyAndClosed.Should().BeFalse();
             actual.IsBrokenAndOpen.Should().BeTrue();
             actual.IsThresholdReached.Should().BeTrue();
+            actual.LastError.Should().NotBeNull();
             Debug.WriteLine(Thread.CurrentThread.Name);
         }
     }
